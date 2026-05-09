@@ -1,24 +1,29 @@
-# heimdall-mcp
+# @cardor/heimdall-mcp
 
 Transparent proxy for any MCP server. Intercepts all JSON-RPC messages, measures latency, and stores traces in a configurable database — without touching the original server.
 
 ## Table of Contents
 
-- [How it works](#how-it-works)
-- [Installation](#installation)
-- [Usage modes](#usage-modes)
-  - [Mode 1 — CLI wrapping a subprocess (stdio)](#mode-1--cli-wrapping-a-subprocess-stdio)
-  - [Mode 2 — CLI wrapping a remote HTTP server](#mode-2--cli-wrapping-a-remote-http-server)
-  - [Mode 3 — CLI wrapping a remote SSE server](#mode-3--cli-wrapping-a-remote-sse-server)
-  - [Mode 4 — Library for developers](#mode-4--library-for-developers)
-- [Stores](#stores)
-  - [SQLite](#sqlite)
-  - [PostgreSQL](#postgresql)
-  - [MySQL](#mysql)
-- [What gets recorded](#what-gets-recorded)
-- [Jaeger UI (OTLP)](#jaeger-ui-otlp)
-- [Custom interceptors](#custom-interceptors)
-- [CLI reference](#cli-reference)
+- [@cardor/heimdall-mcp](#cardorheimdall-mcp)
+  - [Table of Contents](#table-of-contents)
+  - [How it works](#how-it-works)
+  - [Installation](#installation)
+  - [Usage modes](#usage-modes)
+    - [Mode 1 — CLI wrapping a subprocess (stdio)](#mode-1--cli-wrapping-a-subprocess-stdio)
+    - [Mode 2 — CLI wrapping a remote HTTP server](#mode-2--cli-wrapping-a-remote-http-server)
+    - [Mode 3 — CLI wrapping a remote SSE server](#mode-3--cli-wrapping-a-remote-sse-server)
+    - [Mode 4 — Library for developers](#mode-4--library-for-developers)
+  - [Stores](#stores)
+    - [SQLite](#sqlite)
+    - [PostgreSQL](#postgresql)
+    - [MySQL](#mysql)
+  - [What gets recorded](#what-gets-recorded)
+  - [Jaeger UI (OTLP)](#jaeger-ui-otlp)
+    - [1. Start Jaeger](#1-start-jaeger)
+    - [2. Add `--otlp` to your config](#2-add---otlp-to-your-config)
+    - [3. Open Jaeger UI](#3-open-jaeger-ui)
+  - [Custom interceptors](#custom-interceptors)
+  - [CLI reference](#cli-reference)
 
 ---
 
