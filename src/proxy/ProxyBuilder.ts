@@ -24,6 +24,7 @@ export class ProxyBuilder {
   private _inbound?: InboundConfig
   private _outbound?: OutboundConfig
   private _store?: string
+  private _otlp?: string
 
   static create(): ProxyBuilder {
     return new ProxyBuilder()
@@ -44,6 +45,11 @@ export class ProxyBuilder {
     return this
   }
 
+  otlp(endpoint: string): this {
+    this._otlp = endpoint
+    return this
+  }
+
   async build(): Promise<McpProxy> {
     if (!this._inbound)  throw new Error('ProxyBuilder: inbound config is required')
     if (!this._outbound) throw new Error('ProxyBuilder: outbound config is required')
@@ -57,6 +63,7 @@ export class ProxyBuilder {
       inbound,
       outbound as ConstructorParameters<typeof McpProxy>[1],
       store,
+      this._otlp,
     )
   }
 }

@@ -18,9 +18,10 @@ export class McpProxy extends EventEmitter {
     private inbound: McpTransport,
     private outbound: StdioOutbound | HttpOutbound | SseOutbound,
     store: TraceStore,
+    otlpEndpoint?: string,
   ) {
     super()
-    const collector = new TelemetryCollector(store)
+    const collector = new TelemetryCollector(store, otlpEndpoint)
     this.pipeline = new InterceptorPipeline()
     this.pipeline.use(new TelemetryInterceptor(collector))
     this.pipeline.use(new ForwardInterceptor(outbound))
