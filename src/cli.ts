@@ -3,6 +3,10 @@ import pc from 'picocolors'
 
 import { ProxyBuilder } from '@/proxy/ProxyBuilder'
 
+function log(msg: string, ...args: unknown[]) {
+  process.stderr.write(`[heimdall-mcp] ${msg} ${args.map((a) => JSON.stringify(a)).join(' ')}\n`)
+}
+
 const program = new Command()
 
 program
@@ -13,28 +17,40 @@ program
 program
   .command('start', { isDefault: true })
   .description('Start the proxy (default command)')
-  .option('--store <url>', 'Storage connection string (sqlite://, postgres://, mysql://)')
-  .option('--target <url>', 'Target server URL for http/sse outbound')
-  .option('--in <transport>', 'Inbound transport: stdio | http | sse', 'stdio')
-  .option('--in-port <port>', 'Port for inbound http/sse', parseInt)
-  .option('--out <transport>', 'Outbound transport: stdio | http | sse', 'stdio')
-  .option('--out-port <port>', 'Port for outbound http/sse', parseInt)
+  .option('--store <url>',      'Storage connection string (sqlite://, postgres://, mysql://)')
+  .option('--target <url>',     'Target server URL for http/sse outbound')
+  .option('--in <transport>',   'Inbound transport: stdio | http | sse', 'stdio')
+  .option('--in-port <port>',   'Port for inbound http/sse', parseInt)
+  .option('--out <transport>',  'Outbound transport: stdio | http | sse', 'stdio')
+  .option('--out-port <port>',  'Port for outbound http/sse', parseInt)
+  .option('--debug',            'Write verbose logs to stderr')
   .allowUnknownOption(true)
-  .action(async (opts, cmd) => {
-    const rawArgs = cmd.args
+  .action(async (opts) => {
+    const debug = Boolean(opts.debug)
+
+    // Commander may strip '--' from cmd.args — parse process.argv directly to be safe
+    const dashDashIdx = process.argv.indexOf('--')
+    const subArgs = dashDashIdx >= 0 ? process.argv.slice(dashDashIdx + 1) : []
+    const [subCommand, ...subCommandArgs] = subArgs
+
+    if (debug) {
+      log('starting with config', {
+        store:        opts.store,
+        inTransport:  opts.in,
+        outTransport: opts.out,
+        target:       opts.target ?? null,
+        subCommand:   subCommand ?? null,
+        subCommandArgs,
+      })
+    }
 
     if (!opts.store) {
-      console.error(pc.red('Error: --store is required'))
+      process.stderr.write(pc.red('Error: --store is required\n'))
       process.exit(1)
     }
 
-    const inTransport = opts.in as 'stdio' | 'http' | 'sse'
+    const inTransport  = opts.in  as 'stdio' | 'http' | 'sse'
     const outTransport = opts.out as 'stdio' | 'http' | 'sse'
-
-    // remaining args after '--' are the subprocess command
-    const separatorIdx = rawArgs.indexOf('--')
-    const subArgs = separatorIdx >= 0 ? rawArgs.slice(separatorIdx + 1) : []
-    const [subCommand, ...subCommandArgs] = subArgs
 
     const builder = ProxyBuilder.create()
       .inbound({ transport: inTransport, port: opts.inPort })
@@ -42,25 +58,45 @@ program
 
     if (outTransport === 'stdio') {
       if (!subCommand) {
-        console.error(pc.red('Error: stdio outbound requires a command after --'))
+        process.stderr.write(pc.red('Error: stdio outbound requires a command after --\n'))
+        process.stderr.write(`  Received process.argv: ${JSON.stringify(process.argv)}\n`)
         process.exit(1)
       }
       builder.outbound({ transport: 'stdio', command: subCommand, args: subCommandArgs })
     } else {
       if (!opts.target) {
-        console.error(pc.red('Error: http/sse outbound requires --target <url>'))
+        process.stderr.write(pc.red('Error: http/sse outbound requires --target <url>\n'))
         process.exit(1)
       }
       builder.outbound({ transport: outTransport, url: opts.target })
     }
 
-    const proxy = await builder.build()
+    let proxy
+    try {
+      proxy = await builder.build()
+    } catch (err) {
+      process.stderr.write(pc.red(`Error building proxy: ${err}\n`))
+      if (debug && err instanceof Error) process.stderr.write(err.stack + '\n')
+      process.exit(1)
+    }
 
-    process.on('SIGINT',  () => proxy.stop().then(() => process.exit(0)))
-    process.on('SIGTERM', () => proxy.stop().then(() => process.exit(0)))
-    proxy.on('error', (err) => console.error(pc.red('[proxy error]'), err))
+    if (debug) log('proxy built, starting...')
+
+    process.on('SIGINT',  () => { if (debug) log('SIGINT received, stopping'); proxy.stop().then(() => process.exit(0)) })
+    process.on('SIGTERM', () => { if (debug) log('SIGTERM received, stopping'); proxy.stop().then(() => process.exit(0)) })
+
+    process.on('uncaughtException', (err) => {
+      process.stderr.write(pc.red(`[heimdall-mcp] uncaught: ${err}\n`))
+      if (debug) process.stderr.write(err.stack + '\n')
+    })
+
+    proxy.on('error', (err) => {
+      process.stderr.write(pc.red(`[heimdall-mcp] proxy error: ${err}\n`))
+      if (debug && err instanceof Error) process.stderr.write(err.stack + '\n')
+    })
 
     await proxy.start()
+    if (debug) log('proxy running')
   })
 
 program.parse()
