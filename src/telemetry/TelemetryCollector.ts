@@ -22,10 +22,11 @@ export class TelemetryCollector {
       this.metrics.record(toolName, input.status, input.durationMs)
     }
 
-    this.log.debug(`${span.name} [${input.status}] ${input.durationMs}ms`, {
-      traceId: span.traceId,
-      spanId: span.spanId,
-    })
+    const meta: Record<string, unknown> = { traceId: span.traceId, spanId: span.spanId }
+    if (input.status === 'error' && input.response.error) {
+      meta['error'] = input.response.error
+    }
+    this.log.debug(`${span.name} [${input.status}] ${input.durationMs}ms`, meta)
 
     try {
       await this.store.save(span)
