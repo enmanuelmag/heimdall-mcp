@@ -1,13 +1,53 @@
 {
   "name": "@cardor/heimdall-mcp",
   "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Transparent MCP proxy with OpenTelemetry tracing and configurable storage",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "keywords": [],
+  "bin": {
+    "heimdall-mcp": "./bin/heimdall-mcp.js"
+  },
+  "files": ["bin", "dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "node --test --import tsx/esm src/tests/*.test.ts",
+    "lint": "eslint . --fix",
+    "prepublishOnly": "npm run build && npm test",
+    "prepare": "husky"
+  },
+  "keywords": ["mcp", "proxy", "opentelemetry", "tracing", "observability"],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "drizzle-orm": "^0.45.2",
+    "@libsql/client": "^0.14.0",
+    "postgres": "^3.4.9",
+    "mysql2": "^3.22.3",
+    "commander": "^12.1.0",
+    "valibot": "^1.4.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "@types/node": "^22.19.17",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "husky": "^9.1.7",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.59.1"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
 }
