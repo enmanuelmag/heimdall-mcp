@@ -1,6 +1,6 @@
 {
   "name": "@cardor/heimdall-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Transparent MCP proxy with OpenTelemetry tracing and configurable storage",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,7 +14,10 @@
   "bin": {
     "heimdall-mcp": "./bin/heimdall-mcp.js"
   },
-  "files": ["bin", "dist"],
+  "files": [
+    "bin",
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -23,7 +26,13 @@
     "prepublishOnly": "npm run build && npm test",
     "prepare": "husky"
   },
-  "keywords": ["mcp", "proxy", "opentelemetry", "tracing", "observability"],
+  "keywords": [
+    "mcp",
+    "proxy",
+    "opentelemetry",
+    "tracing",
+    "observability"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
