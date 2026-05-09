@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import pc from 'picocolors'
 
+import { pkg } from '@/core/package-data'
 import { ProxyBuilder } from '@/proxy/ProxyBuilder'
 
 function log(msg: string, ...args: unknown[]) {
@@ -12,18 +13,19 @@ const program = new Command()
 program
   .name('heimdall-mcp')
   .description('Transparent MCP proxy with tracing and configurable storage')
-  .version('0.1.0')
+  .version(pkg.version)
 
 program
   .command('start', { isDefault: true })
   .description('Start the proxy (default command)')
-  .option('--store <url>',      'Storage connection string (sqlite://, postgres://, mysql://)')
-  .option('--target <url>',     'Target server URL for http/sse outbound')
-  .option('--in <transport>',   'Inbound transport: stdio | http | sse', 'stdio')
-  .option('--in-port <port>',   'Port for inbound http/sse', parseInt)
-  .option('--out <transport>',  'Outbound transport: stdio | http | sse', 'stdio')
-  .option('--out-port <port>',  'Port for outbound http/sse', parseInt)
-  .option('--debug',            'Write verbose logs to stderr')
+  .option('--store <url>', 'Storage connection string (sqlite://, postgres://, mysql://)')
+  .option('--target <url>', 'Target server URL for http/sse outbound')
+  .option('--in <transport>', 'Inbound transport: stdio | http | sse', 'stdio')
+  .option('--in-port <port>', 'Port for inbound http/sse', parseInt)
+  .option('--out <transport>', 'Outbound transport: stdio | http | sse', 'stdio')
+  .option('--out-port <port>', 'Port for outbound http/sse', parseInt)
+  .option('--otlp <url>', 'OTLP HTTP endpoint for Jaeger/Tempo (e.g. http://localhost:4318/v1/traces)')
+  .option('--debug', 'Write verbose logs to stderr')
   .allowUnknownOption(true)
   .action(async (opts) => {
     const debug = Boolean(opts.debug)
@@ -35,11 +37,11 @@ program
 
     if (debug) {
       log('starting with config', {
-        store:        opts.store,
-        inTransport:  opts.in,
+        store: opts.store,
+        inTransport: opts.in,
         outTransport: opts.out,
-        target:       opts.target ?? null,
-        subCommand:   subCommand ?? null,
+        target: opts.target ?? null,
+        subCommand: subCommand ?? null,
         subCommandArgs,
       })
     }
@@ -49,12 +51,14 @@ program
       process.exit(1)
     }
 
-    const inTransport  = opts.in  as 'stdio' | 'http' | 'sse'
+    const inTransport = opts.in as 'stdio' | 'http' | 'sse'
     const outTransport = opts.out as 'stdio' | 'http' | 'sse'
 
     const builder = ProxyBuilder.create()
       .inbound({ transport: inTransport, port: opts.inPort })
       .store(opts.store)
+
+    if (opts.otlp) builder.otlp(opts.otlp)
 
     if (outTransport === 'stdio') {
       if (!subCommand) {
@@ -82,7 +86,7 @@ program
 
     if (debug) log('proxy built, starting...')
 
-    process.on('SIGINT',  () => { if (debug) log('SIGINT received, stopping'); proxy.stop().then(() => process.exit(0)) })
+    process.on('SIGINT', () => { if (debug) log('SIGINT received, stopping'); proxy.stop().then(() => process.exit(0)) })
     process.on('SIGTERM', () => { if (debug) log('SIGTERM received, stopping'); proxy.stop().then(() => process.exit(0)) })
 
     process.on('uncaughtException', (err) => {

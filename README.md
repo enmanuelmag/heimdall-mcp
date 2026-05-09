@@ -16,6 +16,7 @@ Transparent proxy for any MCP server. Intercepts all JSON-RPC messages, measures
   - [PostgreSQL](#postgresql)
   - [MySQL](#mysql)
 - [What gets recorded](#what-gets-recorded)
+- [Jaeger UI (OTLP)](#jaeger-ui-otlp)
 - [Custom interceptors](#custom-interceptors)
 - [CLI reference](#cli-reference)
 
@@ -323,6 +324,80 @@ Every JSON-RPC message produces a span in the `mcp_spans` table. Attributes vary
 | any other        | `mcp.{method}`        | `gen_ai.operation.name`, `mcp.duration_ms`                 | —                             |
 
 Attributes use the `gen_ai.*` prefix following the [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) for generative AI.
+
+---
+
+## Jaeger UI (OTLP)
+
+heimdall-mcp can export every span to a Jaeger instance in real time via OTLP HTTP, so you can visualize traces without querying the database directly.
+
+![Jaeger UI showing heimdall-mcp traces](assets/jaeger.png)
+
+### 1. Start Jaeger
+
+```bash
+docker run -d \
+  --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+
+### 2. Add `--otlp` to your config
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "heimdall-mcp",
+      "args": [
+        "--store",  "sqlite://~/.mcp-traces/traces.db",
+        "--otlp",   "http://localhost:4318/v1/traces",
+        "--", "node", "my-server.js"
+      ]
+    }
+  }
+}
+```
+
+For the HTTP/SSE variant (e.g. the setup used during development of this project):
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "sh", "-c",
+      "args": [
+        "heimdall-mcp --store postgresql://user:pass@localhost:5432/db --out http --target http://localhost:3000/mcp --otlp http://localhost:4318/v1/traces"
+      ]
+    }
+  }
+}
+```
+
+### 3. Open Jaeger UI
+
+```
+http://localhost:16686
+```
+
+Select service **heimdall-mcp** and click **Find Traces**. Each MCP method (`mcp.tool.call`, `mcp.initialize`, `mcp.tools.list`, …) appears as a separate trace with full attributes and input/output event bodies.
+
+**Dark mode** — append `?uiConfig={"theme":"dark"}` to the URL, or mount a config file:
+
+```bash
+echo '{"uiConfig":{"theme":"dark"}}' > jaeger-ui.json
+
+docker rm -f jaeger && docker run -d \
+  --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  -v $(pwd)/jaeger-ui.json:/etc/jaeger/ui-config.json \
+  -e JAEGER_UI_CONFIG_FILE=/etc/jaeger/ui-config.json \
+  jaegertracing/all-in-one:latest
+```
+
+> The `--otlp` flag is additive — spans are saved to the database **and** exported to Jaeger at the same time.
 
 ---
 
