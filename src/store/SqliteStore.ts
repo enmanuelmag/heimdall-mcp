@@ -1,5 +1,5 @@
 import { createClient } from '@libsql/client'
-import { and, between, eq } from 'drizzle-orm'
+import { and, between, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 
 import { spans } from '@/schema/sqlite.schema'
@@ -13,6 +13,34 @@ export class SqliteStore implements TraceStore {
   constructor(url: string) {
     const client = createClient({ url })
     this.db = drizzle(client)
+  }
+
+  async init(): Promise<void> {
+    await this.db.run(sql`
+      CREATE TABLE IF NOT EXISTS mcp_spans (
+        id          TEXT    NOT NULL PRIMARY KEY,
+        trace_id    TEXT    NOT NULL,
+        span_id     TEXT    NOT NULL,
+        parent_id   TEXT,
+        name        TEXT    NOT NULL,
+        status      TEXT    NOT NULL,
+        started_at  TEXT    NOT NULL,
+        ended_at    TEXT    NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        attributes  TEXT,
+        events      TEXT
+      )
+    `)
+    await this.db.run(sql`
+      CREATE TABLE IF NOT EXISTS mcp_metrics (
+        id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        tool_name   TEXT    NOT NULL,
+        call_count  INTEGER DEFAULT 0,
+        error_count INTEGER DEFAULT 0,
+        avg_duration REAL,
+        updated_at  TEXT    NOT NULL
+      )
+    `)
   }
 
   async save(span: McpSpan): Promise<void> {
