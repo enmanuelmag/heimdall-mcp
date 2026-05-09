@@ -1,12 +1,12 @@
-import type { InboundConfig, OutboundConfig } from '@/types'
-
 import { HttpInbound } from './HttpInbound'
 import { HttpOutbound } from './HttpOutbound'
-import type { McpTransport } from './McpTransport'
 import { SseInbound } from './SseInbound'
 import { SseOutbound } from './SseOutbound'
 import { StdioInbound } from './StdioInbound'
 import { StdioOutbound } from './StdioOutbound'
+
+import type { McpTransport } from './McpTransport'
+import type { InboundConfig, OutboundConfig } from '@/types'
 
 export class TransportFactory {
   static createInbound(config: InboundConfig): McpTransport {

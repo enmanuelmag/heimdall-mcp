@@ -1,12 +1,13 @@
 import { createServer } from 'node:http'
 
-import type { JsonRpcMessage } from '@/types'
 import type { McpTransport } from './McpTransport'
+import type { JsonRpcMessage } from '@/types'
+import type { ServerResponse } from 'node:http'
 
 export class SseInbound implements McpTransport {
   private handler?: (msg: JsonRpcMessage) => Promise<JsonRpcMessage>
   private server
-  private clients = new Set<import('node:http').ServerResponse>()
+  private clients = new Set<ServerResponse>()
 
   constructor(private port: number, private host = '0.0.0.0') {
     this.server = createServer(async (req, res) => {

@@ -1,8 +1,7 @@
 import { randomBytes } from 'node:crypto'
 
-import type { JsonRpcMessage } from '@/types'
-
 import type { Interceptor, InterceptorContext } from './Interceptor'
+import type { JsonRpcMessage } from '@/types'
 
 export class InterceptorPipeline {
   private interceptors: Interceptor[] = []

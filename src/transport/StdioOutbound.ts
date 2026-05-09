@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 
-import type { JsonRpcMessage } from '@/types'
 import type { McpTransport } from './McpTransport'
+import type { JsonRpcMessage } from '@/types'
 
 export class StdioOutbound implements McpTransport {
   private proc

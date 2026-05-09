@@ -1,11 +1,11 @@
+import { and, between, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/mysql2'
 import mysql from 'mysql2/promise'
-import { and, between, eq } from 'drizzle-orm'
 
 import { spans } from '@/schema/mysql.schema'
-import type { McpSpan, SpanFilters } from '@/types'
 
 import type { TraceStore } from './TraceStore'
+import type { McpSpan, SpanFilters } from '@/types'
 
 export class MySqlStore implements TraceStore {
   private pool

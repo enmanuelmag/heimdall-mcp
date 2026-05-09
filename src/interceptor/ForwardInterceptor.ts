@@ -1,9 +1,8 @@
-import type { JsonRpcMessage } from '@/types'
+import type { Interceptor, InterceptorContext } from './Interceptor'
 import type { HttpOutbound } from '@/transport/HttpOutbound'
 import type { SseOutbound } from '@/transport/SseOutbound'
 import type { StdioOutbound } from '@/transport/StdioOutbound'
-
-import type { Interceptor, InterceptorContext } from './Interceptor'
+import type { JsonRpcMessage } from '@/types'
 
 type ForwardableOutbound = StdioOutbound | HttpOutbound | SseOutbound
 

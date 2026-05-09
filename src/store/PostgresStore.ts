@@ -1,11 +1,11 @@
+import { and, between, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import { and, between, eq } from 'drizzle-orm'
 
 import { spans } from '@/schema/pg.schema'
-import type { McpSpan, SpanFilters } from '@/types'
 
 import type { TraceStore } from './TraceStore'
+import type { McpSpan, SpanFilters } from '@/types'
 
 export class PostgresStore implements TraceStore {
   private sql

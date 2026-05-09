@@ -1,11 +1,11 @@
 import { createClient } from '@libsql/client'
-import { drizzle } from 'drizzle-orm/libsql'
 import { and, between, eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/libsql'
 
 import { spans } from '@/schema/sqlite.schema'
-import type { McpSpan, SpanFilters } from '@/types'
 
 import type { TraceStore } from './TraceStore'
+import type { McpSpan, SpanFilters } from '@/types'
 
 export class SqliteStore implements TraceStore {
   private db

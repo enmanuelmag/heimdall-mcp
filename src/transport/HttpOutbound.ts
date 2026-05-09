@@ -1,5 +1,5 @@
-import type { JsonRpcMessage } from '@/types'
 import type { McpTransport } from './McpTransport'
+import type { JsonRpcMessage } from '@/types'
 
 export class HttpOutbound implements McpTransport {
   constructor(private url: string) {}

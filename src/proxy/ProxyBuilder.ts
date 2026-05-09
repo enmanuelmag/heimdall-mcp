@@ -2,9 +2,10 @@ import * as v from 'valibot'
 
 import { StoreResolver } from '@/store/StoreResolver'
 import { TransportFactory } from '@/transport/TransportFactory'
-import type { InboundConfig, OutboundConfig } from '@/types'
 
 import { McpProxy } from './McpProxy'
+
+import type { InboundConfig, OutboundConfig } from '@/types'
 
 const InboundSchema = v.object({
   transport: v.picklist(['stdio', 'http', 'sse']),

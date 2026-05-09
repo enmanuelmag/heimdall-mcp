@@ -3,12 +3,13 @@ import { EventEmitter } from 'node:events'
 import { ForwardInterceptor } from '@/interceptor/ForwardInterceptor'
 import { InterceptorPipeline } from '@/interceptor/InterceptorPipeline'
 import { TelemetryInterceptor } from '@/interceptor/TelemetryInterceptor'
-import type { TraceStore } from '@/store/TraceStore'
 import { TelemetryCollector } from '@/telemetry/TelemetryCollector'
+
+import type { TraceStore } from '@/store/TraceStore'
 import type { HttpOutbound } from '@/transport/HttpOutbound'
+import type { McpTransport } from '@/transport/McpTransport'
 import type { SseOutbound } from '@/transport/SseOutbound'
 import type { StdioOutbound } from '@/transport/StdioOutbound'
-import type { McpTransport } from '@/transport/McpTransport'
 
 export class McpProxy extends EventEmitter {
   private pipeline: InterceptorPipeline

@@ -1,9 +1,9 @@
-import type { TraceStore } from '@/store/TraceStore'
-
 import { LogEmitter } from './LogEmitter'
 import { McpSpanBuilder } from './McpSpanBuilder'
-import type { SpanInput } from './McpSpanBuilder'
 import { MetricsRecorder } from './MetricsRecorder'
+
+import type { SpanInput } from './McpSpanBuilder'
+import type { TraceStore } from '@/store/TraceStore'
 
 export type { SpanInput }
 

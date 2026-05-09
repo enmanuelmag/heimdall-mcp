@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 
-import type { JsonRpcMessage } from '@/types'
 import type { McpTransport } from './McpTransport'
+import type { JsonRpcMessage } from '@/types'
 
 export class HttpInbound implements McpTransport {
   private handler?: (msg: JsonRpcMessage) => Promise<JsonRpcMessage>

@@ -1,7 +1,6 @@
-import type { JsonRpcMessage } from '@/types'
-import type { TelemetryCollector } from '@/telemetry/TelemetryCollector'
-
 import type { Interceptor, InterceptorContext } from './Interceptor'
+import type { TelemetryCollector } from '@/telemetry/TelemetryCollector'
+import type { JsonRpcMessage } from '@/types'
 
 export class TelemetryInterceptor implements Interceptor {
   readonly name = 'TelemetryInterceptor'
