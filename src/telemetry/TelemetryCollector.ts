@@ -1,6 +1,7 @@
 import { LogEmitter } from './LogEmitter'
 import { McpSpanBuilder } from './McpSpanBuilder'
 import { MetricsRecorder } from './MetricsRecorder'
+import { OtlpExporter } from './OtlpExporter'
 
 import type { SpanInput } from './McpSpanBuilder'
 import type { TraceStore } from '@/store/TraceStore'
@@ -11,8 +12,11 @@ export class TelemetryCollector {
   private spanBuilder = new McpSpanBuilder()
   private metrics = new MetricsRecorder()
   private log = new LogEmitter()
+  private otlp?: OtlpExporter
 
-  constructor(private store: TraceStore) {}
+  constructor(private store: TraceStore, otlpEndpoint?: string) {
+    if (otlpEndpoint) this.otlp = new OtlpExporter(otlpEndpoint)
+  }
 
   async record(input: SpanInput): Promise<void> {
     const span = this.spanBuilder.build(input)
@@ -28,11 +32,10 @@ export class TelemetryCollector {
     }
     this.log.debug(`${span.name} [${input.status}] ${input.durationMs}ms`, meta)
 
-    try {
-      await this.store.save(span)
-    } catch (err) {
-      this.log.error('Failed to save span', { err: String(err) })
-    }
+    await Promise.all([
+      this.store.save(span).catch((err) => this.log.error('Failed to save span', { err: String(err) })),
+      this.otlp?.export(span),
+    ])
   }
 
   getMetrics() {
