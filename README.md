@@ -453,6 +453,10 @@ Options:
 
   --in-port <port>      Port for --in http or --in sse
 
+  --otlp <url>          Export spans to an OTLP HTTP endpoint (e.g. Jaeger)
+                          Additive — spans are also saved to the store
+                          Example: http://localhost:4318/v1/traces
+
   -V, --version         Print version
   -h, --help            Print this help
 
@@ -468,4 +472,80 @@ Examples:
 
   # stdio proxy → remote SSE server with Postgres
   heimdall-mcp --store postgres://user:pass@host/db --out sse --target http://remote.com
+
+  # with OTLP export to Jaeger
+  heimdall-mcp --store sqlite://./t.db --otlp http://localhost:4318/v1/traces -- node server.js
 ```
+
+---
+
+## Roadmap
+
+### Policy & Permission System
+
+A per-MCP permission system, loaded at startup via `--policy <path>`.
+
+#### Phase 1 — `--policy` flag + YAML config parsing *(next)*
+
+New CLI flag: `heimdall-mcp --policy ./heimdall-policy.yml -- node server.js`
+
+The proxy reads and parses the YAML file on startup. Base config structure:
+
+```yaml
+# heimdall-policy.yml
+policy:
+  default: allow   # fallback when no explicit rule matches
+
+  deny:
+    - tools: ["delete_file", "write_file", "execute_command"]
+
+  allow:
+    - tools: ["read_file", "search", "list_directory"]
+```
+
+`deny` takes priority over `allow` (deny-wins).
+
+#### Phase 2 — Tool allow/deny enforcement *(planned)*
+
+- Blocking logic in the interceptor using the lists from the config
+- If a tool is in `deny` → heimdall returns a JSON-RPC error without forwarding to the real server
+- Blocked calls are logged with reason
+- Top-level `deny` + `allow` as the first interface (no per-server granularity yet)
+
+#### Phase 3 — Action-type filtering *(planned)*
+
+Filter by action category instead of exact tool name: `read` / `write` / `execute`. heimdall infers the type from the tool name (keyword heuristic) or MCP metadata.
+
+```yaml
+policy:
+  deny:
+    - actions: [write, execute]
+  allow:
+    - actions: [read]
+```
+
+#### Phase 4 — Per-MCP scoped permissions *(planned)*
+
+Permissions declared individually per MCP server:
+
+```yaml
+servers:
+  filesystem:
+    deny:
+      tools: ["write_file", "delete_file"]
+      actions: [write]
+  github:
+    allow:
+      tools: ["get_issue", "list_prs"]
+      actions: [read]
+```
+
+#### Phase 5 — Runtime policy enforcement *(planned)*
+
+Real-time blocking with three configurable modes: `block` | `warn` | `audit`
+
+- `block` — rejects the call with a JSON-RPC error
+- `warn` — forwards the call but logs a warning with the trace
+- `audit` — records the span with attribute `policy.violation = true`
+
+Violations are emitted as OpenTelemetry events on the span.
