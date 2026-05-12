@@ -1,6 +1,6 @@
 {
   "name": "@cardor/heimdall-mcp",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Transparent MCP proxy with OpenTelemetry tracing and configurable storage",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,7 +36,7 @@
     "observability"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.2",
     "drizzle-orm": "^0.45.2",
