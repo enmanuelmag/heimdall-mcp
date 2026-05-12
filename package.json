@@ -23,6 +23,8 @@
     "dev": "tsup --watch",
     "test": "node --test --import tsx/esm src/tests/*.test.ts",
     "lint": "eslint . --fix",
+    "release": "bash scripts/publish.sh",
+    "release:dry": "bash scripts/publish.sh --dry-run",
     "prepublishOnly": "npm run build && npm test",
     "prepare": "husky"
   },
