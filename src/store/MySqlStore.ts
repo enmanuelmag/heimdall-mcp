@@ -21,7 +21,7 @@ export class MySqlStore implements TraceStore {
     await this.db.execute(METRICS_RAW_MYSQL);
   }
 
-  async save(span: StoredSpan): Promise<void> {
+  async saveSpan(span: StoredSpan): Promise<void> {
     await this.db.insert(spans).values(span);
   }
 

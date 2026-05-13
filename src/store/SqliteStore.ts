@@ -20,7 +20,7 @@ export class SqliteStore implements TraceStore {
     await this.db.run(METRICS_RAW_SQLITE);
   }
 
-  async save(storedSpan: StoredSpan): Promise<void> {
+  async saveSpan(storedSpan: StoredSpan): Promise<void> {
     await this.db.insert(spans).values(storedSpan).onConflictDoNothing();
   }
 

@@ -22,7 +22,7 @@ export class PostgresStore implements TraceStore {
     await this.db.execute(METRICS_RAW_PG);
   }
 
-  async save(span: StoredSpan): Promise<void> {
+  async saveSpan(span: StoredSpan): Promise<void> {
     await this.db.insert(spans).values(span).onConflictDoNothing();
   }
 
