@@ -5,23 +5,26 @@ import { afterEach, beforeEach, describe, test } from 'node:test';
 
 import { SqliteStore } from '@/store/SqliteStore';
 
-import type { McpSpan } from '@/types';
+import type { StoredSpan } from '@/types';
 
 const TMP = join(import.meta.dirname, '../../.tmp-test');
 
-function makeSpan(overrides: Partial<McpSpan> = {}): McpSpan {
-  const now = new Date();
+function makeSpan(overrides: Partial<StoredSpan> = {}): StoredSpan {
   return {
-    id: 'trace01-span01',
     traceId: 'trace01',
     spanId: 'span01',
     name: 'mcp.tool.call',
-    status: 'ok',
-    startedAt: now,
-    endedAt: new Date(now.getTime() + 42),
-    durationMs: 42,
+    status: 1,
+    startTimeUnixNano: 12_345_678_901,
+    endTimeUnixNano: 12_345_678_943,
     attributes: { 'gen_ai.tool.name': 'read_file' },
-    events: [{ name: 'tool.input', timestamp: now, attributes: { body: '{}' } }],
+    events: [
+      {
+        name: 'tool.input',
+        timestamp: new Date('2026-05-13T11:52:04.105Z'),
+        attributes: { body: '{}' },
+      },
+    ],
     ...overrides,
   };
 }
@@ -46,17 +49,16 @@ describe('SqliteStore', () => {
 
   test('save() stores a span and query() retrieves it', async () => {
     const span = makeSpan();
-    await store.save(span);
+    await store.saveSpan(span);
     const results = await store.query({ traceId: 'trace01' });
     assert.equal(results.length, 1);
-    assert.equal(results[0].id, 'trace01-span01');
     assert.equal(results[0].name, 'mcp.tool.call');
-    assert.equal(results[0].status, 'ok');
-    assert.equal(results[0].durationMs, 42);
+    assert.equal(results[0].status, 1);
+    assert.equal(results[0].startTimeUnixNano, span.startTimeUnixNano);
   });
 
   test('save() preserves attributes and events', async () => {
-    await store.save(makeSpan());
+    await store.saveSpan(makeSpan());
     const [result] = await store.query({ traceId: 'trace01' });
     assert.deepEqual(result.attributes, { 'gen_ai.tool.name': 'read_file' });
     assert.equal(result.events?.length, 1);
@@ -65,23 +67,23 @@ describe('SqliteStore', () => {
 
   test('save() on duplicate id does not throw (onConflictDoNothing)', async () => {
     const span = makeSpan();
-    await store.save(span);
-    await assert.doesNotReject(() => store.save(span));
+    await store.saveSpan(span);
+    await assert.doesNotReject(() => store.saveSpan(span));
     const results = await store.query({ traceId: 'trace01' });
     assert.equal(results.length, 1);
   });
 
   test('query() filters by status', async () => {
-    await store.save(makeSpan({ id: 'trace01-span01', spanId: 'span01', status: 'ok' }));
-    await store.save(makeSpan({ id: 'trace01-span02', spanId: 'span02', status: 'error' }));
-    const errors = await store.query({ traceId: 'trace01', status: 'error' });
+    await store.saveSpan(makeSpan({ spanId: 'span01', status: 1 }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', status: 2 }));
+    const errors = await store.query({ traceId: 'trace01', status: 2 });
     assert.equal(errors.length, 1);
     assert.equal(errors[0].spanId, 'span02');
   });
 
   test('query() filters by name', async () => {
-    await store.save(makeSpan({ id: 'trace01-span01', spanId: 'span01', name: 'mcp.tool.call' }));
-    await store.save(makeSpan({ id: 'trace01-span02', spanId: 'span02', name: 'mcp.tools.list' }));
+    await store.saveSpan(makeSpan({ spanId: 'span01', name: 'mcp.tool.call' }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', name: 'mcp.tools.list' }));
     const results = await store.query({ traceId: 'trace01', name: 'mcp.tools.list' });
     assert.equal(results.length, 1);
     assert.equal(results[0].name, 'mcp.tools.list');
@@ -89,7 +91,7 @@ describe('SqliteStore', () => {
 
   test('query() respects limit', async () => {
     for (let i = 0; i < 5; i++) {
-      await store.save(makeSpan({ id: `trace01-span0${i}`, spanId: `span0${i}` }));
+      await store.saveSpan(makeSpan({ spanId: `span0${i}` }));
     }
     const results = await store.query({ traceId: 'trace01', limit: 2 });
     assert.equal(results.length, 2);

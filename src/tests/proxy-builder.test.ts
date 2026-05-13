@@ -1,74 +1,30 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { afterEach, beforeEach, describe, test } from 'node:test';
+import { describe, test } from 'node:test';
 
-import { ProxyBuilder } from '@/proxy/ProxyBuilder';
+import { TransportFactory } from '@/transport/TransportFactory';
 
-const TMP = join(import.meta.dirname, '../../.tmp-test-builder');
-const storeUrl = () => `sqlite://${join(TMP, 'test.db')}`;
+describe('TransportFactory', () => {
+  test('creates a stdio inbound transport', () => {
+    const transport = TransportFactory.createInbound({ transport: 'stdio' });
+    assert.equal(transport.constructor.name, 'StdioInbound');
+  });
 
-describe('ProxyBuilder', () => {
-  beforeEach(() => mkdirSync(TMP, { recursive: true }));
-  afterEach(() => rmSync(TMP, { recursive: true, force: true }));
-
-  test('throws when inbound is missing', async () => {
-    await assert.rejects(
+  test('throws when outbound stdio has no command', () => {
+    assert.throws(
       () =>
-        ProxyBuilder.create()
-          .outbound({ transport: 'stdio', command: 'echo' })
-          .store(storeUrl())
-          .build(),
-      /inbound config is required/
+        TransportFactory.createOutbound({
+          transport: 'stdio',
+        }),
+      /requires a command/
     );
   });
 
-  test('throws when outbound is missing', async () => {
-    await assert.rejects(
-      () => ProxyBuilder.create().inbound({ transport: 'stdio' }).store(storeUrl()).build(),
-      /outbound config is required/
-    );
-  });
+  test('creates an http outbound transport', () => {
+    const transport = TransportFactory.createOutbound({
+      transport: 'http',
+      url: 'http://localhost:3000',
+    });
 
-  test('throws when store is missing', async () => {
-    await assert.rejects(
-      () =>
-        ProxyBuilder.create()
-          .inbound({ transport: 'stdio' })
-          .outbound({ transport: 'stdio', command: 'echo' })
-          .build(),
-      /store connection string is required/
-    );
-  });
-
-  test('throws when outbound stdio has no command', async () => {
-    await assert.rejects(
-      () =>
-        ProxyBuilder.create()
-          .inbound({ transport: 'stdio' })
-          .outbound({ transport: 'stdio' })
-          .store(storeUrl())
-          .build(),
-      /command/i
-    );
-  });
-
-  test('throws when inbound transport is invalid', () => {
-    assert.throws(() =>
-      ProxyBuilder.create()
-        // @ts-expect-error intentional invalid value
-        .inbound({ transport: 'grpc' })
-    );
-  });
-
-  test('builds successfully with valid stdio → stdio config', async () => {
-    const proxy = await ProxyBuilder.create()
-      .inbound({ transport: 'stdio' })
-      .outbound({ transport: 'stdio', command: 'echo', args: ['hello'] })
-      .store(storeUrl())
-      .build();
-
-    assert.ok(proxy);
-    await proxy.stop();
+    assert.equal(transport.constructor.name, 'HttpOutbound');
   });
 });
