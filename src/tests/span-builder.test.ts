@@ -3,6 +3,8 @@ import { describe, test } from 'node:test';
 
 import { DatabaseSpanProcessor } from '@/telemetry/DatabaseSpanProcessor';
 
+import type { TraceStore } from '@/store/TraceStore';
+import type { StoredSpan } from '@/types';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 function makeReadableSpan(overrides: Partial<ReadableSpan> = {}): ReadableSpan {
@@ -62,5 +64,41 @@ describe('DatabaseSpanProcessor', () => {
 
     assert.equal(span.status, 2);
     assert.equal(span.statusMessage, 'boom');
+  });
+
+  test('parseSpanToDbFormat preserves kind field', () => {
+    const span = DatabaseSpanProcessor.parseSpanToDbFormat(makeReadableSpan({ kind: 4 }));
+    assert.equal(span.kind, 4);
+  });
+
+  test('parseSpanToDbFormat preserves links array', () => {
+    const links = [{ context: { traceId: 'link-trace', spanId: 'link-span', traceFlags: 1 }, attributes: {} }];
+    const span = DatabaseSpanProcessor.parseSpanToDbFormat(makeReadableSpan({ links }));
+    assert.deepEqual(span.links, links);
+  });
+
+  test('parseSpanToDbFormat sets statusMessage to null when message is undefined', () => {
+    const span = DatabaseSpanProcessor.parseSpanToDbFormat(
+      makeReadableSpan({ status: { code: 1, message: undefined } })
+    );
+    assert.equal(span.statusMessage, null);
+  });
+
+  test('onEnd() calls store.saveSpan with the parsed span', async () => {
+    let captured: StoredSpan | undefined;
+    const fakeStore: TraceStore = {
+      saveSpan: async (s: StoredSpan) => { captured = s; },
+      query: async () => [],
+      close: async () => {},
+    };
+
+    const processor = new DatabaseSpanProcessor(fakeStore);
+    await processor.onEnd(makeReadableSpan());
+
+    assert.ok(captured, 'saveSpan was not called');
+    assert.equal(captured.traceId, 'trace01');
+    assert.equal(captured.spanId, 'span01');
+    assert.equal(captured.name, 'mcp.tool.call');
+    assert.equal(captured.status, 1);
   });
 });

@@ -101,4 +101,45 @@ describe('SqliteStore', () => {
     const results = await store.query({ traceId: 'nonexistent' });
     assert.equal(results.length, 0);
   });
+
+  test('query() filters by spanId', async () => {
+    await store.saveSpan(makeSpan({ spanId: 'span01' }));
+    await store.saveSpan(makeSpan({ spanId: 'span02' }));
+    const results = await store.query({ traceId: 'trace01', spanId: 'span02' });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].spanId, 'span02');
+  });
+
+  test('query() filters by date range (from/to)', async () => {
+    // 1ms → 1_000_000 ns; filter boundary at 2ms = 2_000_000 ns
+    await store.saveSpan(makeSpan({ spanId: 'span01', startTimeUnixNano: 1_000_000 }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', startTimeUnixNano: 5_000_000 }));
+    const results = await store.query({
+      traceId: 'trace01',
+      from: new Date(0),
+      to: new Date(2),
+    });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].spanId, 'span01');
+  });
+
+  test('save() preserves kind field', async () => {
+    await store.saveSpan(makeSpan({ kind: 3 }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.equal(result.kind, 3);
+  });
+
+  test('save() preserves links', async () => {
+    const links = [{ traceId: 'trace-link', spanId: 'span-link' }];
+    await store.saveSpan(makeSpan({ links }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.deepEqual(result.links, links);
+  });
+
+  test('save() preserves resourceAttributes', async () => {
+    const resourceAttributes = { 'service.name': 'my-svc', 'service.version': '1.0' };
+    await store.saveSpan(makeSpan({ resourceAttributes }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.deepEqual(result.resourceAttributes, resourceAttributes);
+  });
 });

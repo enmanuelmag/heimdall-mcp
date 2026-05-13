@@ -27,9 +27,9 @@ export const metrics = mysqlTable('heimdall_metrics', {
 
 export const SPAN_RAW_MYSQL = sql`
 CREATE TABLE IF NOT EXISTS heimdall_spans (
-  trace_id             TEXT    NOT NULL,
-  span_id              TEXT    NOT NULL PRIMARY KEY,
-  name                 TEXT    NOT NULL,
+  trace_id             VARCHAR(64)  NOT NULL,
+  span_id              VARCHAR(64)  NOT NULL PRIMARY KEY,
+  name                 VARCHAR(512) NOT NULL,
   kind                 INTEGER,
   status               INTEGER NOT NULL,
   status_message       TEXT,
