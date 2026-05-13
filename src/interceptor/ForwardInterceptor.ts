@@ -1,13 +1,13 @@
-import type { Interceptor, InterceptorContext } from './Interceptor'
-import type { HttpOutbound } from '@/transport/HttpOutbound'
-import type { SseOutbound } from '@/transport/SseOutbound'
-import type { StdioOutbound } from '@/transport/StdioOutbound'
-import type { JsonRpcMessage } from '@/types'
+import type { Interceptor, InterceptorContext } from './Interceptor';
+import type { HttpOutbound } from '@/transport/HttpOutbound';
+import type { SseOutbound } from '@/transport/SseOutbound';
+import type { StdioOutbound } from '@/transport/StdioOutbound';
+import type { JsonRpcMessage } from '@/types';
 
-type ForwardableOutbound = StdioOutbound | HttpOutbound | SseOutbound
+type ForwardableOutbound = StdioOutbound | HttpOutbound | SseOutbound;
 
 export class ForwardInterceptor implements Interceptor {
-  readonly name = 'ForwardInterceptor'
+  readonly name = 'ForwardInterceptor';
 
   constructor(private outbound: ForwardableOutbound) {}
 
@@ -16,6 +16,6 @@ export class ForwardInterceptor implements Interceptor {
     _context: InterceptorContext,
     _next: () => Promise<JsonRpcMessage>
   ): Promise<JsonRpcMessage> {
-    return this.outbound.sendAndWait(request)
+    return this.outbound.sendAndWait(request);
   }
 }
