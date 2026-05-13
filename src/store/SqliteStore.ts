@@ -1,12 +1,11 @@
 import { createClient } from '@libsql/client';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, between, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 
 import { spans } from '@/schema/sqlite.schema';
 
 import type { TraceStore } from './TraceStore';
 import type { SpanFilters, StoredSpan } from '@/types';
-import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 export class SqliteStore implements TraceStore {
   private db;
@@ -18,7 +17,7 @@ export class SqliteStore implements TraceStore {
 
   async init(): Promise<void> {
     await this.db.run(sql`
-      CREATE TABLE IF NOT EXISTS spans (
+      CREATE TABLE IF NOT EXISTS heimdall_spans (
         trace_id              TEXT NOT NULL,
         span_id               TEXT NOT NULL PRIMARY KEY,
         name                  TEXT NOT NULL,
@@ -30,12 +29,12 @@ export class SqliteStore implements TraceStore {
         attributes            TEXT,
         events                TEXT,
         links                 TEXT,
-        resource_attributes  TEXT,
+        resource_attributes   TEXT,
         created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     await this.db.run(sql`
-      CREATE TABLE IF NOT EXISTS mcp_metrics (
+      CREATE TABLE IF NOT EXISTS heimdall_metrics (
         id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         tool_name   TEXT    NOT NULL,
         call_count  INTEGER DEFAULT 0,
@@ -46,26 +45,8 @@ export class SqliteStore implements TraceStore {
     `);
   }
 
-  async save(span: ReadableSpan): Promise<void> {
-    const spanContext = span.spanContext();
-
-    await this.db
-      .insert(spans)
-      .values({
-        traceId: spanContext.traceId,
-        spanId: spanContext.spanId,
-        name: span.name,
-        kind: span.kind,
-        status: span.status.code,
-        statusMessage: span.status.message || null,
-        startTimeUnixNano: span.startTime[0] * 1_000_000_000 + span.startTime[1],
-        endTimeUnixNano: span.endTime[0] * 1_000_000_000 + span.endTime[1],
-        attributes: span.attributes || {},
-        events: span.events || [],
-        links: span.links || [],
-        resourceAttributes: span.resource || {},
-      })
-      .onConflictDoNothing();
+  async save(storedSpan: StoredSpan): Promise<void> {
+    await this.db.insert(spans).values(storedSpan).onConflictDoNothing();
   }
 
   async query(filters: SpanFilters): Promise<StoredSpan[]> {
@@ -74,8 +55,12 @@ export class SqliteStore implements TraceStore {
     if (filters.spanId) conditions.push(eq(spans.spanId, filters.spanId));
     if (filters.name) conditions.push(eq(spans.name, filters.name));
     if (filters.status) {
-      const statusCode = filters.status === 'ok' ? 1 : filters.status === 'error' ? 2 : 0;
-      conditions.push(eq(spans.status, statusCode));
+      conditions.push(eq(spans.status, filters.status));
+    }
+    if (filters.from && filters.to) {
+      conditions.push(
+        between(spans.startTimeUnixNano, filters.from.getTime() * 1e6, filters.to.getTime() * 1e6)
+      );
     }
 
     const rows = (await this.db

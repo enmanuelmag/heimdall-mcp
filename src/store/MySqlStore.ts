@@ -5,7 +5,7 @@ import mysql from 'mysql2/promise';
 import { spans } from '@/schema/mysql.schema';
 
 import type { TraceStore } from './TraceStore';
-import type { McpSpan, SpanFilters } from '@/types';
+import type { SpanFilters, StoredSpan } from '@/types';
 
 export class MySqlStore implements TraceStore {
   private pool;
@@ -18,22 +18,25 @@ export class MySqlStore implements TraceStore {
 
   async init(): Promise<void> {
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS mcp_spans (
-        id           VARCHAR(64)  NOT NULL PRIMARY KEY,
-        trace_id     VARCHAR(32)  NOT NULL,
-        span_id      VARCHAR(16)  NOT NULL,
-        parent_id    VARCHAR(16),
-        name         VARCHAR(128) NOT NULL,
-        status       VARCHAR(16)  NOT NULL,
-        started_at   TIMESTAMP(3) NOT NULL,
-        ended_at     TIMESTAMP(3) NOT NULL,
-        duration_ms  INT          NOT NULL,
-        attributes   JSON,
-        events       JSON
+      CREATE TABLE IF NOT EXISTS heimdall_spans (
+        trace_id             TEXT    NOT NULL,
+        span_id              TEXT    NOT NULL PRIMARY KEY,
+        name                 TEXT    NOT NULL,
+        kind                 INTEGER,
+        status               INTEGER NOT NULL,
+        status_message       TEXT,
+        start_time_unix_nano BIGINT NOT NULL,
+        end_time_unix_nano   BIGINT NOT NULL,
+        attributes           JSON,
+        events               JSON,
+        links                JSON,
+        resource_attributes  JSON,
+        created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS mcp_metrics (
+      CREATE TABLE IF NOT EXISTS heimdall_metrics (
         id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         tool_name    VARCHAR(128)    NOT NULL,
         call_count   INT             DEFAULT 0,
@@ -44,54 +47,29 @@ export class MySqlStore implements TraceStore {
     `);
   }
 
-  async save(span: McpSpan): Promise<void> {
-    await this.db
-      .insert(spans)
-      .values({
-        id: span.id,
-        traceId: span.traceId,
-        spanId: span.spanId,
-        parentId: span.parentId,
-        name: span.name,
-        status: span.status,
-        startedAt: span.startedAt,
-        endedAt: span.endedAt,
-        durationMs: span.durationMs,
-        attributes: span.attributes ?? null,
-        events: span.events ?? null,
-      })
-      .onDuplicateKeyUpdate({ set: { id: span.id } });
+  async save(span: StoredSpan): Promise<void> {
+    await this.db.insert(spans).values(span);
   }
 
-  async query(filters: SpanFilters): Promise<McpSpan[]> {
+  async query(filters: SpanFilters): Promise<StoredSpan[]> {
     const conditions = [];
     if (filters.traceId) conditions.push(eq(spans.traceId, filters.traceId));
     if (filters.spanId) conditions.push(eq(spans.spanId, filters.spanId));
     if (filters.name) conditions.push(eq(spans.name, filters.name));
     if (filters.status) conditions.push(eq(spans.status, filters.status));
     if (filters.from && filters.to) {
-      conditions.push(between(spans.startedAt, filters.from, filters.to));
+      conditions.push(
+        between(spans.startTimeUnixNano, filters.from.getTime() * 1e6, filters.to.getTime() * 1e6)
+      );
     }
 
-    const rows = await this.db
+    const rows = (await this.db
       .select()
       .from(spans)
       .where(conditions.length ? and(...conditions) : undefined)
-      .limit(filters.limit ?? 100);
+      .limit(filters.limit ?? 100)) as StoredSpan[];
 
-    return rows.map((r) => ({
-      id: r.id,
-      traceId: r.traceId,
-      spanId: r.spanId,
-      parentId: r.parentId ?? undefined,
-      name: r.name,
-      status: r.status as McpSpan['status'],
-      startedAt: r.startedAt,
-      endedAt: r.endedAt,
-      durationMs: r.durationMs,
-      attributes: r.attributes as Record<string, unknown> | undefined,
-      events: r.events as McpSpan['events'],
-    }));
+    return rows;
   }
 
   async close(): Promise<void> {
