@@ -1,8 +1,8 @@
-import { and, between, eq, sql } from 'drizzle-orm';
+import { and, between, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 
-import { spans } from '@/schema/mysql.schema';
+import { METRICS_RAW_MYSQL, SPAN_RAW_MYSQL, spans } from '@/schema/mysql.schema';
 
 import type { TraceStore } from './TraceStore';
 import type { SpanFilters, StoredSpan } from '@/types';
@@ -17,34 +17,8 @@ export class MySqlStore implements TraceStore {
   }
 
   async init(): Promise<void> {
-    await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS heimdall_spans (
-        trace_id             TEXT    NOT NULL,
-        span_id              TEXT    NOT NULL PRIMARY KEY,
-        name                 TEXT    NOT NULL,
-        kind                 INTEGER,
-        status               INTEGER NOT NULL,
-        status_message       TEXT,
-        start_time_unix_nano BIGINT NOT NULL,
-        end_time_unix_nano   BIGINT NOT NULL,
-        attributes           JSON,
-        events               JSON,
-        links                JSON,
-        resource_attributes  JSON,
-        created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS heimdall_metrics (
-        id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        tool_name    VARCHAR(128)    NOT NULL,
-        call_count   INT             DEFAULT 0,
-        error_count  INT             DEFAULT 0,
-        avg_duration FLOAT,
-        updated_at   TIMESTAMP(3)    NOT NULL
-      )
-    `);
+    await this.db.execute(SPAN_RAW_MYSQL);
+    await this.db.execute(METRICS_RAW_MYSQL);
   }
 
   async save(span: StoredSpan): Promise<void> {

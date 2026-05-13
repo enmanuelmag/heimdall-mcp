@@ -1,8 +1,8 @@
 import { createClient } from '@libsql/client';
-import { and, between, eq, sql } from 'drizzle-orm';
+import { and, between, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 
-import { spans } from '@/schema/sqlite.schema';
+import { METRICS_RAW_SQLITE, SPAN_RAW_SQLITE, spans } from '@/schema/sqlite.schema';
 
 import type { TraceStore } from './TraceStore';
 import type { SpanFilters, StoredSpan } from '@/types';
@@ -16,33 +16,8 @@ export class SqliteStore implements TraceStore {
   }
 
   async init(): Promise<void> {
-    await this.db.run(sql`
-      CREATE TABLE IF NOT EXISTS heimdall_spans (
-        trace_id              TEXT NOT NULL,
-        span_id               TEXT NOT NULL PRIMARY KEY,
-        name                  TEXT NOT NULL,
-        kind                  INTEGER,
-        status                INTEGER NOT NULL,
-        status_message        TEXT,
-        start_time_unix_nano  INTEGER NOT NULL,
-        end_time_unix_nano    INTEGER NOT NULL,
-        attributes            TEXT,
-        events                TEXT,
-        links                 TEXT,
-        resource_attributes   TEXT,
-        created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    await this.db.run(sql`
-      CREATE TABLE IF NOT EXISTS heimdall_metrics (
-        id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        tool_name   TEXT    NOT NULL,
-        call_count  INTEGER DEFAULT 0,
-        error_count INTEGER DEFAULT 0,
-        avg_duration INTEGER,
-        updated_at  TEXT    NOT NULL
-      )
-    `);
+    await this.db.run(SPAN_RAW_SQLITE);
+    await this.db.run(METRICS_RAW_SQLITE);
   }
 
   async save(storedSpan: StoredSpan): Promise<void> {
