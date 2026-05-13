@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const spans = sqliteTable('spans', {
+export const spans = sqliteTable('heimdall_spans', {
   traceId: text('trace_id').notNull(),
   spanId: text('span_id').notNull().primaryKey(),
   name: text('name').notNull(),
@@ -15,7 +15,7 @@ export const spans = sqliteTable('spans', {
   resourceAttributes: text('resource_attributes', { mode: 'json' }),
 });
 
-export const metrics = sqliteTable('mcp_metrics', {
+export const metrics = sqliteTable('heimdall_metrics', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   toolName: text('tool_name').notNull(),
   callCount: integer('call_count').default(0),
