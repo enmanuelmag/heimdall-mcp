@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { integer, json, pgTable, real, serial, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const spans = pgTable('heimdall_spans', {
@@ -23,3 +24,32 @@ export const metrics = pgTable('heimdall_metrics', {
   avgDuration: real('avg_duration'),
   updatedAt: timestamp('updated_at').notNull(),
 });
+
+export const SPAN_RAW_PG = sql`
+CREATE TABLE IF NOT EXISTS heimdall_spans (
+  trace_id             TEXT    NOT NULL,
+  span_id              TEXT    NOT NULL PRIMARY KEY,
+  name                 TEXT    NOT NULL,
+  kind                 INTEGER,
+  status               INTEGER NOT NULL,
+  status_message       TEXT,
+  start_time_unix_nano BIGINT NOT NULL,
+  end_time_unix_nano   BIGINT NOT NULL,
+  attributes           JSONB,
+  events               JSONB,
+  links                JSONB,
+  resource_attributes  JSONB,
+  created_at           TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+`;
+
+export const METRICS_RAW_PG = sql`
+CREATE TABLE IF NOT EXISTS heimdall_metrics (
+  id           SERIAL       PRIMARY KEY,
+  tool_name    VARCHAR(128) NOT NULL,
+  call_count   INTEGER      DEFAULT 0,
+  error_count  INTEGER      DEFAULT 0,
+  avg_duration REAL,
+  updated_at   TIMESTAMP    NOT NULL
+)
+`;
