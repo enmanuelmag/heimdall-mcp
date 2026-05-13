@@ -1,3 +1,5 @@
+import { SpanStatusCode } from '@opentelemetry/api';
+
 import type { SpanStatus } from '@/types';
 
 export interface ToolMetrics {
@@ -15,9 +17,13 @@ export class MetricsRecorder {
       errorCount: 0,
       totalDurationMs: 0,
     };
+
     existing.callCount++;
-    if (status === 'error') existing.errorCount++;
+
+    if (status === SpanStatusCode.ERROR) existing.errorCount++;
+
     existing.totalDurationMs += durationMs;
+
     this.metrics.set(toolName, existing);
   }
 

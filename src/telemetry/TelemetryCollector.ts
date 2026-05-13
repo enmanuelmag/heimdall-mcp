@@ -36,6 +36,7 @@ export class TelemetryCollector {
   async record(input: SpanInput): Promise<void> {
     const method = input.request.method ?? 'unknown';
     const spanName = this.getSpanName(method);
+    const statusCode = input.status === 'ok' ? SpanStatusCode.OK : SpanStatusCode.ERROR;
 
     const span = this.tracer.startSpan(spanName, {
       startTime: input.startedAt,
@@ -44,7 +45,7 @@ export class TelemetryCollector {
 
     span.setAttribute('duration.ms', input.durationMs);
     span.setStatus({
-      code: input.status === 'ok' ? SpanStatusCode.OK : SpanStatusCode.ERROR,
+      code: statusCode,
       message: input.status === 'error' ? 'error' : undefined,
     });
 
@@ -57,7 +58,7 @@ export class TelemetryCollector {
 
     const toolName = (input.request.params as { name?: string } | undefined)?.name;
     if (method === 'tools/call' && toolName) {
-      this.metrics.record(toolName, input.status, input.durationMs);
+      this.metrics.record(toolName, statusCode, input.durationMs);
     }
 
     this.log.debug(`${spanName} [${input.status}] ${input.durationMs}ms`, {

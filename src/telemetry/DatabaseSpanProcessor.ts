@@ -14,7 +14,7 @@ export class DatabaseSpanProcessor implements DatabaseSpanProcessor {
     // Convertir ReadableSpan (OTLP) a McpSpan (tu schema)
     // Guardar en DB
     const storedSpan: StoredSpan = DatabaseSpanProcessor.parseSpanToDbFormat(span);
-    await this.store.save(storedSpan).catch((err) => {
+    await this.store.saveSpan(storedSpan).catch((err) => {
       console.error('[heimdall-mcp] Failed to save span to DB:', err);
     });
   }
