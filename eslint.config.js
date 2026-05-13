@@ -22,6 +22,7 @@ const sharedRules = {
     'error',
     { prefer: 'type-imports', fixStyle: 'separate-type-imports' },
   ],
+  'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
 }
 
 export default tseslint.config(

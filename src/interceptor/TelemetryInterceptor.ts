@@ -1,9 +1,9 @@
-import type { Interceptor, InterceptorContext } from './Interceptor'
-import type { TelemetryCollector } from '@/telemetry/TelemetryCollector'
-import type { JsonRpcMessage } from '@/types'
+import type { Interceptor, InterceptorContext } from './Interceptor';
+import type { TelemetryCollector } from '@/telemetry/TelemetryCollector';
+import type { JsonRpcMessage } from '@/types';
 
 export class TelemetryInterceptor implements Interceptor {
-  readonly name = 'TelemetryInterceptor'
+  readonly name = 'TelemetryInterceptor';
 
   constructor(private collector: TelemetryCollector) {}
 
@@ -12,37 +12,35 @@ export class TelemetryInterceptor implements Interceptor {
     context: InterceptorContext,
     next: () => Promise<JsonRpcMessage>
   ): Promise<JsonRpcMessage> {
-    context.startedAt = new Date()
+    context.startedAt = new Date();
 
-    let response: JsonRpcMessage
-    let status: 'ok' | 'error' = 'ok'
+    let response: JsonRpcMessage;
+    let status: 'ok' | 'error' = 'ok';
 
     try {
-      response = await next()
-      if (response.error) status = 'error'
+      response = await next();
+      if (response.error) status = 'error';
     } catch (err) {
-      status = 'error'
+      status = 'error';
       response = {
         jsonrpc: '2.0',
         id: request.id,
         error: { code: -32603, message: String(err) },
-      }
+      };
     }
 
-    const endedAt = new Date()
-    const durationMs = endedAt.getTime() - context.startedAt.getTime()
+    const endedAt = new Date();
+    const durationMs = endedAt.getTime() - context.startedAt.getTime();
 
     await this.collector.record({
-      traceId: context.traceId,
-      spanId: context.spanId,
-      request,
-      response,
-      status,
-      startedAt: context.startedAt,
-      endedAt,
       durationMs,
-    })
+      endedAt,
+      startedAt: context.startedAt,
+      status,
+      response,
+      request,
+    });
 
-    return response
+    return response;
   }
 }

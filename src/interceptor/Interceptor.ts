@@ -1,17 +1,17 @@
-import type { JsonRpcMessage } from '@/types'
+import type { JsonRpcMessage } from '@/types';
 
 export interface InterceptorContext {
-  startedAt: Date
-  traceId: string
-  spanId: string
-  metadata: Record<string, unknown>
+  startedAt: Date;
+  traceId: string;
+  spanId: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface Interceptor {
-  name: string
+  name: string;
   intercept(
     request: JsonRpcMessage,
     context: InterceptorContext,
     next: () => Promise<JsonRpcMessage>
-  ): Promise<JsonRpcMessage>
+  ): Promise<JsonRpcMessage>;
 }

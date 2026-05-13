@@ -1,101 +1,145 @@
-import assert from 'node:assert/strict'
-import { mkdirSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { afterEach, beforeEach, describe, test } from 'node:test'
+import assert from 'node:assert/strict';
+import { mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, test } from 'node:test';
 
-import { SqliteStore } from '@/store/SqliteStore'
-import type { McpSpan } from '@/types'
+import { SqliteStore } from '@/store/SqliteStore';
 
-const TMP = join(import.meta.dirname, '../../.tmp-test')
+import type { StoredSpan } from '@/types';
 
-function makeSpan(overrides: Partial<McpSpan> = {}): McpSpan {
-  const now = new Date()
+const TMP = join(import.meta.dirname, '../../.tmp-test');
+
+function makeSpan(overrides: Partial<StoredSpan> = {}): StoredSpan {
   return {
-    id:         'trace01-span01',
-    traceId:    'trace01',
-    spanId:     'span01',
-    name:       'mcp.tool.call',
-    status:     'ok',
-    startedAt:  now,
-    endedAt:    new Date(now.getTime() + 42),
-    durationMs: 42,
+    traceId: 'trace01',
+    spanId: 'span01',
+    name: 'mcp.tool.call',
+    status: 1,
+    startTimeUnixNano: 12_345_678_901,
+    endTimeUnixNano: 12_345_678_943,
     attributes: { 'gen_ai.tool.name': 'read_file' },
-    events:     [{ name: 'tool.input', timestamp: now, attributes: { body: '{}' } }],
+    events: [
+      {
+        name: 'tool.input',
+        timestamp: new Date('2026-05-13T11:52:04.105Z'),
+        attributes: { body: '{}' },
+      },
+    ],
     ...overrides,
-  }
+  };
 }
 
 describe('SqliteStore', () => {
-  let store: SqliteStore
+  let store: SqliteStore;
 
   beforeEach(async () => {
-    mkdirSync(TMP, { recursive: true })
-    store = new SqliteStore(`file:${join(TMP, 'test.db')}`)
-    await store.init()
-  })
+    mkdirSync(TMP, { recursive: true });
+    store = new SqliteStore(`file:${join(TMP, 'test.db')}`);
+    await store.init();
+  });
 
   afterEach(async () => {
-    await store.close()
-    rmSync(TMP, { recursive: true, force: true })
-  })
+    await store.close();
+    rmSync(TMP, { recursive: true, force: true });
+  });
 
   test('init() is idempotent — calling twice does not throw', async () => {
-    await assert.doesNotReject(() => store.init())
-  })
+    await assert.doesNotReject(() => store.init());
+  });
 
   test('save() stores a span and query() retrieves it', async () => {
-    const span = makeSpan()
-    await store.save(span)
-    const results = await store.query({ traceId: 'trace01' })
-    assert.equal(results.length, 1)
-    assert.equal(results[0].id, 'trace01-span01')
-    assert.equal(results[0].name, 'mcp.tool.call')
-    assert.equal(results[0].status, 'ok')
-    assert.equal(results[0].durationMs, 42)
-  })
+    const span = makeSpan();
+    await store.saveSpan(span);
+    const results = await store.query({ traceId: 'trace01' });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].name, 'mcp.tool.call');
+    assert.equal(results[0].status, 1);
+    assert.equal(results[0].startTimeUnixNano, span.startTimeUnixNano);
+  });
 
   test('save() preserves attributes and events', async () => {
-    await store.save(makeSpan())
-    const [result] = await store.query({ traceId: 'trace01' })
-    assert.deepEqual(result.attributes, { 'gen_ai.tool.name': 'read_file' })
-    assert.equal(result.events?.length, 1)
-    assert.equal(result.events?.[0].name, 'tool.input')
-  })
+    await store.saveSpan(makeSpan());
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.deepEqual(result.attributes, { 'gen_ai.tool.name': 'read_file' });
+    assert.equal(result.events?.length, 1);
+    assert.equal(result.events?.[0].name, 'tool.input');
+  });
 
   test('save() on duplicate id does not throw (onConflictDoNothing)', async () => {
-    const span = makeSpan()
-    await store.save(span)
-    await assert.doesNotReject(() => store.save(span))
-    const results = await store.query({ traceId: 'trace01' })
-    assert.equal(results.length, 1)
-  })
+    const span = makeSpan();
+    await store.saveSpan(span);
+    await assert.doesNotReject(() => store.saveSpan(span));
+    const results = await store.query({ traceId: 'trace01' });
+    assert.equal(results.length, 1);
+  });
 
   test('query() filters by status', async () => {
-    await store.save(makeSpan({ id: 'trace01-span01', spanId: 'span01', status: 'ok' }))
-    await store.save(makeSpan({ id: 'trace01-span02', spanId: 'span02', status: 'error' }))
-    const errors = await store.query({ traceId: 'trace01', status: 'error' })
-    assert.equal(errors.length, 1)
-    assert.equal(errors[0].spanId, 'span02')
-  })
+    await store.saveSpan(makeSpan({ spanId: 'span01', status: 1 }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', status: 2 }));
+    const errors = await store.query({ traceId: 'trace01', status: 2 });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].spanId, 'span02');
+  });
 
   test('query() filters by name', async () => {
-    await store.save(makeSpan({ id: 'trace01-span01', spanId: 'span01', name: 'mcp.tool.call' }))
-    await store.save(makeSpan({ id: 'trace01-span02', spanId: 'span02', name: 'mcp.tools.list' }))
-    const results = await store.query({ traceId: 'trace01', name: 'mcp.tools.list' })
-    assert.equal(results.length, 1)
-    assert.equal(results[0].name, 'mcp.tools.list')
-  })
+    await store.saveSpan(makeSpan({ spanId: 'span01', name: 'mcp.tool.call' }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', name: 'mcp.tools.list' }));
+    const results = await store.query({ traceId: 'trace01', name: 'mcp.tools.list' });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].name, 'mcp.tools.list');
+  });
 
   test('query() respects limit', async () => {
     for (let i = 0; i < 5; i++) {
-      await store.save(makeSpan({ id: `trace01-span0${i}`, spanId: `span0${i}` }))
+      await store.saveSpan(makeSpan({ spanId: `span0${i}` }));
     }
-    const results = await store.query({ traceId: 'trace01', limit: 2 })
-    assert.equal(results.length, 2)
-  })
+    const results = await store.query({ traceId: 'trace01', limit: 2 });
+    assert.equal(results.length, 2);
+  });
 
   test('query() returns empty array when no matches', async () => {
-    const results = await store.query({ traceId: 'nonexistent' })
-    assert.equal(results.length, 0)
-  })
-})
+    const results = await store.query({ traceId: 'nonexistent' });
+    assert.equal(results.length, 0);
+  });
+
+  test('query() filters by spanId', async () => {
+    await store.saveSpan(makeSpan({ spanId: 'span01' }));
+    await store.saveSpan(makeSpan({ spanId: 'span02' }));
+    const results = await store.query({ traceId: 'trace01', spanId: 'span02' });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].spanId, 'span02');
+  });
+
+  test('query() filters by date range (from/to)', async () => {
+    // 1ms → 1_000_000 ns; filter boundary at 2ms = 2_000_000 ns
+    await store.saveSpan(makeSpan({ spanId: 'span01', startTimeUnixNano: 1_000_000 }));
+    await store.saveSpan(makeSpan({ spanId: 'span02', startTimeUnixNano: 5_000_000 }));
+    const results = await store.query({
+      traceId: 'trace01',
+      from: new Date(0),
+      to: new Date(2),
+    });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].spanId, 'span01');
+  });
+
+  test('save() preserves kind field', async () => {
+    await store.saveSpan(makeSpan({ kind: 3 }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.equal(result.kind, 3);
+  });
+
+  test('save() preserves links', async () => {
+    const links = [{ traceId: 'trace-link', spanId: 'span-link' }];
+    await store.saveSpan(makeSpan({ links }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.deepEqual(result.links, links);
+  });
+
+  test('save() preserves resourceAttributes', async () => {
+    const resourceAttributes = { 'service.name': 'my-svc', 'service.version': '1.0' };
+    await store.saveSpan(makeSpan({ resourceAttributes }));
+    const [result] = await store.query({ traceId: 'trace01' });
+    assert.deepEqual(result.resourceAttributes, resourceAttributes);
+  });
+});
