@@ -8,7 +8,7 @@ export type { McpProxyConfig } from '@/types';
 export type { InboundConfig } from '@/types';
 export type { OutboundConfig } from '@/types';
 export type { StoreConfig } from '@/types';
-export type { McpSpan } from '@/types';
+export type { StoredSpan } from '@/types';
 export type { SpanFilters } from '@/types';
 export type { TransportType } from '@/types';
 export type { StoreType } from '@/types';

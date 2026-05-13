@@ -1,6 +1,6 @@
 export type TransportType = 'stdio' | 'http' | 'sse';
 export type StoreType = 'sqlite' | 'postgres' | 'mysql';
-export type SpanStatus = 'ok' | 'error';
+export type SpanStatus = 0 | 1 | 2; // 0=UNSET, 1=OK, 2=ERROR
 
 export interface JsonRpcMessage {
   jsonrpc: '2.0';
