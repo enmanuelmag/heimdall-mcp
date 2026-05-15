@@ -1,6 +1,14 @@
+import type { HttpOutbound } from './transport/HttpOutbound';
+import type { SseOutbound } from './transport/SseOutbound';
+import type { StdioOutbound } from './transport/StdioOutbound';
+
 export type TransportType = 'stdio' | 'http' | 'sse';
 export type StoreType = 'sqlite' | 'postgres' | 'mysql';
 export type SpanStatus = 0 | 1 | 2; // 0=UNSET, 1=OK, 2=ERROR
+export type BodyMode = 'full' | 'redacted' | 'hash';
+export type ServerInfo = { name?: string; version?: string };
+
+export type McpTransportOutbound = StdioOutbound | HttpOutbound | SseOutbound;
 
 export interface JsonRpcMessage {
   jsonrpc: '2.0';
@@ -39,11 +47,23 @@ export interface McpProxyConfig {
   interceptors?: unknown[];
 }
 
-/**
- * Span recuperado de BD (serializado en formato OTLP nativo)
- * Compatible con UIs que esperan OTLP (Jaeger, Grafana, SigNoz, etc.)
- * Campos mapean directamente a OpenTelemetry estándar
- */
+export interface SpanEvent {
+  name: string;
+  time?: number | HrTime;
+  timestamp?: Date;
+  timeUnixNano?: number;
+  attributes?: Record<string, unknown>;
+}
+
+export type HrTime = [number, number];
+
+export interface SpanLink {
+  traceId?: string;
+  spanId?: string;
+  context?: { traceId: string; spanId: string };
+  attributes?: Record<string, unknown>;
+}
+
 export interface StoredSpan {
   traceId: string;
   spanId: string;
@@ -54,8 +74,8 @@ export interface StoredSpan {
   startTimeUnixNano: number; // unix nanoseconds
   endTimeUnixNano: number; // unix nanoseconds
   attributes?: Record<string, unknown>; // OTLP semantic conventions
-  events?: unknown; // Array de eventos OTLP
-  links?: unknown; // Array de links OTLP
+  events?: SpanEvent[];
+  links?: SpanLink[];
   resourceAttributes?: Record<string, unknown>; // Metadatos del servicio
 }
 
@@ -67,4 +87,13 @@ export interface SpanFilters {
   from?: Date;
   to?: Date;
   limit?: number;
+}
+
+export interface SpanInput {
+  request: JsonRpcMessage;
+  response: JsonRpcMessage;
+  status: 'ok' | 'error';
+  startedAt: Date;
+  endedAt: Date;
+  durationMs: number;
 }
