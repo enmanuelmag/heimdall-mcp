@@ -13,9 +13,12 @@ export class ForwardInterceptor implements Interceptor {
 
   async intercept(
     request: JsonRpcMessage,
-    _context: InterceptorContext,
+    context: InterceptorContext,
     _next: () => Promise<JsonRpcMessage>
   ): Promise<JsonRpcMessage> {
-    return this.outbound.sendAndWait(request);
+    const proxyToServerStart = Date.now();
+    const response = await this.outbound.sendAndWait(request);
+    context.metadata['latency.proxy_to_server_ms'] = Date.now() - proxyToServerStart;
+    return response;
   }
 }
