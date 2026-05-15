@@ -291,7 +291,7 @@ heimdall_spans
   status_message        TEXT
   start_time_unix_nano  INTEGER  NOT NULL     → Unix nanoseconds (OTel native)
   end_time_unix_nano    INTEGER  NOT NULL
-  attributes            TEXT/JSON             → rpc.method, tool.name, tool.args, duration.ms, error.message, etc.
+  attributes            TEXT/JSON             → mcp.jsonrpc.method, mcp.tool.name, mcp.transport, mcp.status, mcp.request.id, mcp.server.name, mcp.latency.*, duration.ms, etc.
   events                TEXT/JSON             → OTel events array (e.g. error events)
   links                 TEXT/JSON             → OTel links array
   resource_attributes   TEXT/JSON             → service.name, service.version, service.namespace (OTel semantic conventions)
@@ -348,23 +348,67 @@ Driver: [`mysql2`](https://github.com/sidorares/node-mysql2).
 
 ## What gets recorded
 
-Every JSON-RPC message produces a span in the `heimdall_spans` table. Attributes vary by method:
+Every JSON-RPC message produces a span in the `heimdall_spans` table. All attributes follow the `mcp.*` namespace for interoperability with other MCP-aware tools.
 
-| MCP method       | Span name             | Key attributes                                                                    |
-|------------------|-----------------------|-----------------------------------------------------------------------------------|
-| `initialize`     | `mcp.initialize`      | `rpc.method`, `rpc.system`, `duration.ms`                                         |
-| `tools/list`     | `mcp.tools.list`      | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
-| `tools/call`     | `mcp.tool.call`       | `rpc.method`, `rpc.system`, `tool.name`, `tool.args` (JSON), `duration.ms`        |
-| `resources/read` | `mcp.resource.read`   | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
-| `resources/list` | `mcp.resources.list`  | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
-| `prompts/get`    | `mcp.prompt.get`      | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
-| `prompts/list`   | `mcp.prompts.list`    | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
-| `shutdown`       | `mcp.shutdown`        | `rpc.method`, `rpc.system`, `duration.ms`                                         |
-| any other        | `mcp.{method}`        | `rpc.method`, `rpc.system`, `duration.ms`                                         |
+| MCP method       | Span name            | Key attributes                                                                                           |
+|------------------|----------------------|----------------------------------------------------------------------------------------------------------|
+| `initialize`     | `mcp.initialize`     | `mcp.jsonrpc.method`, `mcp.transport`, `mcp.request.id`, `mcp.status`, `duration.ms`                    |
+| `tools/list`     | `mcp.tools.list`     | + `mcp.server.name`, `mcp.server.version`, `mcp.args_mode`, `mcp.response.result_mode`                  |
+| `tools/call`     | `mcp.tool.call`      | + `mcp.tool.name`, `mcp.tool.args`, `mcp.latency.proxy_to_server_ms`, `mcp.latency.proxy_overhead_ms`   |
+| `resources/read` | `mcp.resource.read`  | + `mcp.server.name`, `mcp.server.version`                                                                |
+| `resources/list` | `mcp.resources.list` | + `mcp.server.name`, `mcp.server.version`                                                                |
+| `prompts/get`    | `mcp.prompt.get`     | + `mcp.server.name`, `mcp.server.version`                                                                |
+| `prompts/list`   | `mcp.prompts.list`   | + `mcp.server.name`, `mcp.server.version`                                                                |
+| `shutdown`       | `mcp.shutdown`       | `mcp.jsonrpc.method`, `mcp.transport`, `mcp.request.id`, `mcp.status`, `duration.ms`                    |
+| any other        | `mcp.{method}`       | `mcp.jsonrpc.method`, `mcp.transport`, `mcp.request.id`, `mcp.status`, `duration.ms`                    |
 
-On error, every span also gets `error.message` and `error.code` attributes plus an `error` OTel event attached to the span.
+**Common attributes on every span:**
 
-Every span's `resource_attributes` column contains OTel resource metadata set via `@opentelemetry/semantic-conventions`:
+| Attribute | Description |
+|---|---|
+| `mcp.rpc.system` | Always `"mcp"` |
+| `mcp.jsonrpc.method` | The JSON-RPC method name |
+| `mcp.request.id` | JSON-RPC request ID — lets you join request/response deterministically |
+| `mcp.transport` | `stdio`, `http`, or `sse` |
+| `mcp.status` | `ok` or `error` |
+| `mcp.server.name` | Name of the real MCP server (captured from `initialize` response) |
+| `mcp.server.version` | Version of the real MCP server (captured from `initialize` response) |
+| `duration.ms` | Total round-trip latency in milliseconds |
+
+**Latency breakdown (on `tools/call`):**
+
+| Attribute | Description |
+|---|---|
+| `mcp.latency.proxy_to_server_ms` | Time the real server took to respond |
+| `mcp.latency.proxy_overhead_ms` | Overhead introduced by the proxy itself |
+
+**Body capture modes:**
+
+Body capture is controlled by `--body-mode` (CLI) or `.setBodyMode()` (library). Default is `redacted`.
+
+| Mode | `mcp.tool.args` / `mcp.tool.response.result` | Also stored |
+|---|---|---|
+| `redacted` (default) | `[redacted]` | `_size`, `redaction_profile` |
+| `hash` | `sha256:<hex>` | `_size`, `redaction_profile` |
+| `full` | raw JSON | `_size`, `redaction_profile` |
+
+> Use `full` only for local development — raw bodies in shared OTLP backends can leak secrets.
+
+**Agent correlation (optional):**
+
+If the MCP client sends a `_meta` object inside `params`, heimdall-mcp will automatically extract and record these attributes:
+
+| `_meta` field | Span attribute |
+|---|---|
+| `conversationId` | `gen_ai.conversation.id` |
+| `turnId` | `gen_ai.turn.id` |
+| `agentRunId` | `gen_ai.agent.run.id` |
+
+As a fallback, the env vars `MCP_CONVERSATION_ID`, `MCP_TURN_ID`, and `MCP_AGENT_RUN_ID` are used if set.
+
+On error, every span also gets `mcp.error.message` and `mcp.error.code` attributes plus an `error` OTel event attached to the span.
+
+Every span's `resource_attributes` column contains OTel resource metadata:
 - `service.name` — `@cardor/heimdall-mcp`
 - `service.version` — package version
 - `service.namespace` — `mcp-proxy`
@@ -471,11 +515,19 @@ interface InterceptorContext {
   startedAt: Date
   traceId: string
   spanId: string
-  metadata: Record<string, unknown>
+  bodyMode: 'redacted' | 'hash' | 'full'
+  transport: 'stdio' | 'http' | 'sse'
+  serverInfo: { name?: string; version?: string }  // populated after initialize
+  conversationId?: string                           // from _meta or env var
+  turnId?: string
+  agentRunId?: string
+  metadata: Record<string, unknown>                 // shared bag between interceptors
 }
 ```
 
-Calling `next()` passes control to the next interceptor in the chain. `ForwardInterceptor` is always last — it makes the actual call to the real server.
+Calling `next()` passes control to the next interceptor in the chain. `ForwardInterceptor` is always last — it makes the actual call to the real server and records `latency.proxy_to_server_ms` in `context.metadata` for the telemetry interceptor to read.
+
+You can use `context.metadata` to pass data between your interceptor and others in the same pipeline run.
 
 ---
 
