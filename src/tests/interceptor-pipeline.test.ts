@@ -59,7 +59,7 @@ describe('InterceptorPipeline', () => {
     });
     pipeline.use(makeTerminal(fakeResponse));
 
-    await pipeline.run(request);
+    await pipeline.run(request, 'redacted', 'stdio', {});
     assert.deepEqual(order, ['first-before', 'second-before', 'second-after', 'first-after']);
   });
 
@@ -76,7 +76,7 @@ describe('InterceptorPipeline', () => {
     });
     pipeline.use(makeTerminal(fakeResponse));
 
-    await pipeline.run(request);
+    await pipeline.run(request, 'redacted', 'stdio', {});
     assert.equal(seen.length, 1);
     assert.equal(seen[0].method, 'tools/call');
   });
@@ -94,7 +94,7 @@ describe('InterceptorPipeline', () => {
     });
     pipeline.use(makeTerminal(fakeResponse));
 
-    await pipeline.run(request);
+    await pipeline.run(request, 'redacted', 'stdio', {});
     assert.ok(captured);
     assert.ok(typeof captured.traceId === 'string' && captured.traceId.length > 0);
     assert.ok(typeof captured.spanId === 'string' && captured.spanId.length > 0);
@@ -108,7 +108,7 @@ describe('InterceptorPipeline', () => {
     pipeline.use(makeTerminal(fakeResponse));
     pipeline.use(after);
 
-    const result = await pipeline.run(request);
+    const result = await pipeline.run(request, 'redacted', 'stdio', {});
     assert.equal(after.called, false);
     assert.deepEqual(result, fakeResponse);
   });
@@ -117,7 +117,7 @@ describe('InterceptorPipeline', () => {
     const pipeline = new InterceptorPipeline();
     pipeline.use(makePassthrough('Pass'));
 
-    await assert.rejects(() => pipeline.run(request), /Pipeline ended without ForwardInterceptor/);
+    await assert.rejects(() => pipeline.run(request, 'redacted', 'stdio', {}), /Pipeline ended without ForwardInterceptor/);
   });
 
   test('each run gets an independent traceId', async () => {
@@ -133,8 +133,8 @@ describe('InterceptorPipeline', () => {
     });
     pipeline.use(makeTerminal(fakeResponse));
 
-    await pipeline.run(request);
-    await pipeline.run(request);
+    await pipeline.run(request, 'redacted', 'stdio', {});
+    await pipeline.run(request, 'redacted', 'stdio', {});
     assert.equal(traceIds.length, 2);
     assert.notEqual(traceIds[0], traceIds[1]);
   });
