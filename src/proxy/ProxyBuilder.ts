@@ -6,7 +6,7 @@ import { TransportFactory } from '@/transport/TransportFactory';
 
 import { McpProxy } from './McpProxy';
 
-import type { InboundConfig, OutboundConfig } from '@/types';
+import type { BodyMode, InboundConfig, OutboundConfig } from '@/types';
 
 const InboundSchema = v.object({
   transport: v.picklist(['stdio', 'http', 'sse']),
@@ -22,6 +22,7 @@ const OutboundSchema = v.object({
 });
 
 export class ProxyBuilder {
+  private _bodyMode: BodyMode = 'redacted';
   private _inbound?: InboundConfig;
   private _outbound?: OutboundConfig;
   private _store?: string;
@@ -57,6 +58,11 @@ export class ProxyBuilder {
     return this;
   }
 
+  setBodyMode(mode: BodyMode): this {
+    this._bodyMode = mode;
+    return this;
+  }
+
   async build(): Promise<McpProxy> {
     if (!this._inbound) throw new Error('ProxyBuilder: inbound config is required');
     if (!this._outbound) throw new Error('ProxyBuilder: outbound config is required');
@@ -70,7 +76,7 @@ export class ProxyBuilder {
       debug: this.debug,
     });
 
-    const proxy = new McpProxy(inbound, outbound as ConstructorParameters<typeof McpProxy>[1]);
+    const proxy = new McpProxy(this._bodyMode, inbound, outbound);
 
     process.on('SIGINT', async () => {
       console.log('[heimdall-mcp] Caught SIGINT, shutting down...');

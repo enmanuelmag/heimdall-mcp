@@ -9,11 +9,15 @@ import type { HttpOutbound } from '@/transport/HttpOutbound';
 import type { McpTransport } from '@/transport/McpTransport';
 import type { SseOutbound } from '@/transport/SseOutbound';
 import type { StdioOutbound } from '@/transport/StdioOutbound';
+import type { BodyMode } from '@/types';
 
 export class McpProxy extends EventEmitter {
+  private serverName?: string;
+  private serverVersion?: string;
   private pipeline: InterceptorPipeline;
 
   constructor(
+    private bodyMode: BodyMode,
     private inbound: McpTransport,
     private outbound: StdioOutbound | HttpOutbound | SseOutbound
   ) {
@@ -34,7 +38,20 @@ export class McpProxy extends EventEmitter {
   async start(): Promise<void> {
     this.inbound.onMessage(async (msg) => {
       try {
-        return await this.pipeline.run(msg);
+        const response = await this.pipeline.run(msg, this.bodyMode, this.inbound.transport, {
+          name: this.serverName,
+          version: this.serverVersion,
+        });
+
+        if (msg.method === 'initialize' && response.result) {
+          const result = response.result as {
+            serverInfo?: { name?: string; version?: string };
+          };
+          this.serverName = result.serverInfo?.name;
+          this.serverVersion = result.serverInfo?.version;
+        }
+
+        return response;
       } catch (err) {
         this.emit('error', err);
         return {
