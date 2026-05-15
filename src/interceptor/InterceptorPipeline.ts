@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import type { Interceptor, InterceptorContext } from './Interceptor';
-import type { JsonRpcMessage } from '@/types';
+import type { BodyMode, JsonRpcMessage, ServerInfo, TransportType } from '@/types';
 
 export class InterceptorPipeline {
   private interceptors: Interceptor[] = [];
@@ -11,12 +11,25 @@ export class InterceptorPipeline {
     return this;
   }
 
-  async run(request: JsonRpcMessage): Promise<JsonRpcMessage> {
+  async run(
+    request: JsonRpcMessage,
+    bodyMode: BodyMode,
+    transport: TransportType,
+    serverInfo: ServerInfo
+  ): Promise<JsonRpcMessage> {
+    const meta = (request.params as { _meta?: Record<string, unknown> })?._meta;
+
     const context: InterceptorContext = {
       startedAt: new Date(),
       traceId: randomBytes(16).toString('hex'),
       spanId: randomBytes(8).toString('hex'),
+      bodyMode,
+      transport,
       metadata: {},
+      conversationId: meta?.conversationId ? String(meta.conversationId) : undefined,
+      turnId: meta?.turnId ? String(meta.turnId) : undefined,
+      agentRunId: meta?.agentRunId ? String(meta.agentRunId) : undefined,
+      serverInfo,
     };
 
     let index = 0;
