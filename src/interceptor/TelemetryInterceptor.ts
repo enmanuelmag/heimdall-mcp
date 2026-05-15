@@ -32,14 +32,16 @@ export class TelemetryInterceptor implements Interceptor {
     const endedAt = new Date();
     const durationMs = endedAt.getTime() - context.startedAt.getTime();
 
-    await this.collector.record({
+    const input = {
       durationMs,
       endedAt,
       startedAt: context.startedAt,
       status,
       response,
       request,
-    });
+    };
+
+    await this.collector.record(input, context);
 
     return response;
   }
