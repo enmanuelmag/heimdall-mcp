@@ -6,7 +6,7 @@ import { StdioInbound } from './StdioInbound';
 import { StdioOutbound } from './StdioOutbound';
 
 import type { McpTransport } from './McpTransport';
-import type { InboundConfig, OutboundConfig } from '@/types';
+import type { InboundConfig, McpTransportOutbound, OutboundConfig } from '@/types';
 
 export class TransportFactory {
   static createInbound(config: InboundConfig): McpTransport {
@@ -20,7 +20,7 @@ export class TransportFactory {
     }
   }
 
-  static createOutbound(config: OutboundConfig): McpTransport {
+  static createOutbound(config: OutboundConfig): McpTransportOutbound {
     switch (config.transport) {
       case 'stdio':
         if (!config.command) throw new Error('outbound stdio requires a command');

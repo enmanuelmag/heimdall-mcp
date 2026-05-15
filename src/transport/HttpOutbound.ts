@@ -1,5 +1,5 @@
 import type { McpTransport } from './McpTransport';
-import type { JsonRpcMessage } from '@/types';
+import type { JsonRpcMessage, TransportType } from '@/types';
 
 function parseSse(rawText: string): JsonRpcMessage | null {
   // SSE events are separated by blank lines; each event may have multiple lines
@@ -20,6 +20,7 @@ function parseSse(rawText: string): JsonRpcMessage | null {
 }
 
 export class HttpOutbound implements McpTransport {
+  transport: TransportType = 'http';
   private sessionId: string | null = null;
 
   constructor(private url: string) {}

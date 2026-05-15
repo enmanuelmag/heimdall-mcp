@@ -1,7 +1,8 @@
 import type { McpTransport } from './McpTransport';
-import type { JsonRpcMessage } from '@/types';
+import type { JsonRpcMessage, TransportType } from '@/types';
 
 export class SseOutbound implements McpTransport {
+  transport: TransportType = 'sse';
   private eventSource?: EventSource;
   private pending = new Map<string | number, (msg: JsonRpcMessage) => void>();
 

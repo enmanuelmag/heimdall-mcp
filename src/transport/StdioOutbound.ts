@@ -2,9 +2,10 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
 import type { McpTransport } from './McpTransport';
-import type { JsonRpcMessage } from '@/types';
+import type { JsonRpcMessage, TransportType } from '@/types';
 
 export class StdioOutbound implements McpTransport {
+  transport: TransportType = 'stdio';
   private proc;
   private pending = new Map<string | number, (msg: JsonRpcMessage) => void>();
 

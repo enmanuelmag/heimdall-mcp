@@ -1,9 +1,11 @@
 import { createInterface } from 'node:readline';
 
 import type { McpTransport } from './McpTransport';
-import type { JsonRpcMessage } from '@/types';
+import type { JsonRpcMessage, TransportType } from '@/types';
 
 export class StdioInbound implements McpTransport {
+  transport: TransportType = 'stdio';
+
   private handler?: (msg: JsonRpcMessage) => Promise<JsonRpcMessage>;
 
   async send(message: JsonRpcMessage): Promise<void> {
