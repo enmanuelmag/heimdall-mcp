@@ -217,6 +217,20 @@ const proxy = await ProxyBuilder.create()
 await proxy.start()
 ```
 
+**With OTLP export and debug logging:**
+
+```ts
+const proxy = await ProxyBuilder.create()
+  .inbound({ transport: 'stdio' })
+  .outbound({ transport: 'stdio', command: 'node', args: ['my-server.js'] })
+  .store('sqlite://./traces.db')
+  .otlp('http://localhost:4318/v1/traces')   // export to Jaeger / Tempo / Grafana
+  .setDebug(true)                             // verbose span logs to stderr
+  .build()
+
+await proxy.start()
+```
+
 **With a custom interceptor:**
 
 ```ts
@@ -336,21 +350,32 @@ Driver: [`mysql2`](https://github.com/sidorares/node-mysql2).
 
 Every JSON-RPC message produces a span in the `heimdall_spans` table. Attributes vary by method:
 
-| MCP method       | Span name             | Key attributes                                          |
-|------------------|-----------------------|---------------------------------------------------------|
-| `initialize`     | `mcp.initialize`      | `rpc.method`, `rpc.system`, `duration.ms`               |
-| `tools/list`     | `mcp.tools.list`      | `rpc.method`, `rpc.system`, `response.result`, `duration.ms` |
-| `tools/call`     | `mcp.tool.call`       | `rpc.method`, `rpc.system`, `tool.name`, `tool.args`, `duration.ms` |
-| `resources/read` | `mcp.resource.read`   | `rpc.method`, `rpc.system`, `duration.ms`               |
-| `resources/list` | `mcp.resources.list`  | `rpc.method`, `rpc.system`, `duration.ms`               |
-| `prompts/get`    | `mcp.prompt.get`      | `rpc.method`, `rpc.system`, `duration.ms`               |
-| `prompts/list`   | `mcp.prompts.list`    | `rpc.method`, `rpc.system`, `duration.ms`               |
-| `shutdown`       | `mcp.shutdown`        | `rpc.method`, `rpc.system`, `duration.ms`               |
-| any other        | `mcp.{method}`        | `rpc.method`, `rpc.system`, `duration.ms`               |
+| MCP method       | Span name             | Key attributes                                                                    |
+|------------------|-----------------------|-----------------------------------------------------------------------------------|
+| `initialize`     | `mcp.initialize`      | `rpc.method`, `rpc.system`, `duration.ms`                                         |
+| `tools/list`     | `mcp.tools.list`      | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
+| `tools/call`     | `mcp.tool.call`       | `rpc.method`, `rpc.system`, `tool.name`, `tool.args` (JSON), `duration.ms`        |
+| `resources/read` | `mcp.resource.read`   | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
+| `resources/list` | `mcp.resources.list`  | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
+| `prompts/get`    | `mcp.prompt.get`      | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
+| `prompts/list`   | `mcp.prompts.list`    | `rpc.method`, `rpc.system`, `response.result`, `duration.ms`                      |
+| `shutdown`       | `mcp.shutdown`        | `rpc.method`, `rpc.system`, `duration.ms`                                         |
+| any other        | `mcp.{method}`        | `rpc.method`, `rpc.system`, `duration.ms`                                         |
 
-On error, every span also gets `error.message` and `error.code` attributes plus an `error` event.
+On error, every span also gets `error.message` and `error.code` attributes plus an `error` OTel event attached to the span.
 
-The schema follows the [OpenTelemetry data model](https://opentelemetry.io/docs/concepts/signals/traces/) — timestamps in Unix nanoseconds, integer status codes, and JSON attribute bags — so rows can be read directly by any OTel-compatible tool.
+Every span's `resource_attributes` column contains OTel resource metadata set via `@opentelemetry/semantic-conventions`:
+- `service.name` — `@cardor/heimdall-mcp`
+- `service.version` — package version
+- `service.namespace` — `mcp-proxy`
+
+The schema follows the [OpenTelemetry data model](https://opentelemetry.io/docs/concepts/signals/traces/) natively:
+- Timestamps stored as **Unix nanoseconds** (`BIGINT` in Postgres/MySQL, `INTEGER` in SQLite)
+- `kind` is an integer **SpanKind** (0=INTERNAL, 1=SERVER, 2=CLIENT, 3=PRODUCER, 4=CONSUMER)
+- `status` is an integer **SpanStatusCode** (0=UNSET, 1=OK, 2=ERROR)
+- JSON columns map directly to OTLP attribute bags
+
+This means rows can be consumed directly by any OTel-compatible tool without transformation.
 
 ---
 
