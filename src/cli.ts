@@ -28,6 +28,11 @@ program
     '--otlp <url>',
     'OTLP HTTP endpoint for Jaeger/Tempo (e.g. http://localhost:4318/v1/traces)'
   )
+  .option(
+    '--body-mode <mode>',
+    'Body capture mode: redacted | hash | full (default: redacted)',
+    'redacted'
+  )
   .option('--debug', 'Write verbose logs to stderr')
   .allowUnknownOption(true)
   .action(async (opts) => {
@@ -57,9 +62,20 @@ program
     const inTransport = opts.in as 'stdio' | 'http' | 'sse';
     const outTransport = opts.out as 'stdio' | 'http' | 'sse';
 
+    const bodyMode = ['redacted', 'hash', 'full'].includes(opts.bodyMode)
+      ? (opts.bodyMode as 'redacted' | 'hash' | 'full')
+      : 'redacted';
+
+    if (opts.bodyMode && !['redacted', 'hash', 'full'].includes(opts.bodyMode)) {
+      process.stderr.write(
+        pc.yellow(`Warning: unknown --body-mode "${opts.bodyMode}", defaulting to "redacted"\n`)
+      );
+    }
+
     const builder = ProxyBuilder.create()
       .inbound({ transport: inTransport, port: opts.inPort })
-      .store(opts.store);
+      .store(opts.store)
+      .setBodyMode(bodyMode);
 
     if (opts.otlp) builder.otlp(opts.otlp);
 

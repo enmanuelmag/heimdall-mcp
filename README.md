@@ -558,6 +558,11 @@ Options:
                           Additive — spans are also saved to the store
                           Example: http://localhost:4318/v1/traces
 
+  --body-mode <mode>    Body capture mode for tool args and responses (default: redacted)
+                          redacted  → stores [redacted] + size (safe for production)
+                          hash      → stores sha256:<hex> + size (safe for production)
+                          full      → stores raw JSON (local/dev only — may leak secrets)
+
   --out-port <port>     Port for outbound http or sse transport
 
   --debug               Write verbose logs to stderr (prints span names + trace IDs to stderr)
