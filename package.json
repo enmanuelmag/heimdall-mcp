@@ -1,6 +1,6 @@
 {
   "name": "@cardor/heimdall-mcp",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Transparent MCP proxy with OpenTelemetry tracing and configurable storage",
   "type": "module",
   "packageManager": "pnpm@11.1.2",
