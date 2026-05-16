@@ -4,6 +4,8 @@ Transparent proxy for any MCP server. Intercepts all JSON-RPC messages, measures
 
 Visit the [website](https://stack.cardor.dev/heimdall) to view a full explanation, examples, and other tools!
 
+[![heimdall-mcp MCP server](https://glama.ai/mcp/servers/enmanuelmag/heimdall-mcp/badges/score.svg)](https://glama.ai/mcp/servers/enmanuelmag/heimdall-mcp)
+
 <a href='https://ko-fi.com/S6S31ZBGQK' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ## Table of Contents
